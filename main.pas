@@ -5,8 +5,11 @@ interface
 uses
   // Delphi
   System.Classes,
+  System.ImageList,
+  VCL.ComCtrls,
   VCL.Controls,
   VCL.Forms,
+  VCL.ImgList,
   VCL.StdCtrls,
   // web3
   web3;
@@ -15,9 +18,13 @@ type
   TfrmMain = class(TForm)
     edtAddress: TEdit;
     btnRefresh: TButton;
+    IL: TImageList;
+    LV: TListView;
     procedure btnRefreshClick(Sender: TObject);
   private
     function GetChain: TChain;
+    procedure Refresh;
+    class procedure Synchronize(P: TThreadProcedure);
   public
     property Chain: TChain read GetChain;
   end;
@@ -30,11 +37,19 @@ implementation
 {$R *.dfm}
 
 uses
+  // Delphi
+  System.JSON,
+  System.Math,
+  System.Net.HttpClient,
+  VCL.Graphics,
+  VCL.Imaging.PngImage,
   // Velthuis' BigNumbers
   Velthuis.BigIntegers,
   // web3
   web3.eth.erc721,
   web3.eth.types,
+  web3.http,
+  web3.json,
   // project
   common;
 
@@ -43,8 +58,24 @@ begin
   Result := Mainnet;
 end;
 
-procedure TfrmMain.btnRefreshClick(Sender: TObject);
+class procedure TfrmMain.Synchronize(P: TThreadProcedure);
 begin
+  if TThread.CurrentThread.ThreadID = MainThreadId then
+    P
+  else
+    TThread.Synchronize(nil, procedure
+    begin
+      P
+    end);
+end;
+
+procedure TfrmMain.Refresh;
+begin
+  Self.Synchronize(procedure
+  begin
+    LV.Clear;
+    IL.Clear;
+  end);
   var client := common.GetClient(Self.Chain, Alchemy);
   // resolve the token contract address
   TAddress.New(client, edtAddress.Text, procedure(token: TAddress; err: IError)
@@ -79,11 +110,57 @@ begin
               common.ShowError(err, Self.Chain);
               EXIT;
             end;
-            // ToDo: get this NFT's metadata schema
+            // get this NFT's metadata schema
+            web3.http.get(uri, procedure(schema: TJsonObject; err: IError)
+            begin
+              if Assigned(err) then
+              begin
+                common.ShowError(err, Self.Chain);
+                EXIT;
+              end;
+              Self.Synchronize(procedure
+              begin
+                var LI := LV.Items.Add;
+                LI.Caption := web3.json.getPropAsStr(schema, 'name');
+                // get the image associated with this NFT
+                web3.http.get(web3.json.getPropAsStr(schema, 'image'), procedure(image: IHttpResponse; err: IError)
+                begin
+                  if Assigned(err) then
+                  begin
+                    common.ShowError(err, Self.Chain);
+                    EXIT;
+                  end;
+                  Self.Synchronize(procedure
+                  begin
+                    var pic := TPicture.Create;
+                    try
+                      pic.LoadFromStream(image.ContentStream);
+                      // add the picture to the ImageList
+                      IL.Width  := Max(IL.Width,  pic.Width);
+                      IL.Height := Max(IL.Height, pic.Height);
+                      var bmp := TBitmap.Create;
+                      try
+                        bmp.Assign(pic.Graphic);
+                        LI.ImageIndex := IL.Add(bmp, nil);
+                      finally
+                        bmp.Free;
+                      end;
+                    finally
+                      pic.Free;
+                    end;
+                  end)
+                end);
+              end);
+            end);
           end);
         end);
     end);
   end);
+end;
+
+procedure TfrmMain.btnRefreshClick(Sender: TObject);
+begin
+  Self.Refresh;
 end;
 
 end.
