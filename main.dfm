@@ -23,7 +23,6 @@ object frmMain: TfrmMain
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 0
     Text = '0x1820a996cd0cee1d3316d1e0e6ebc7b22796af86'
-    ExplicitWidth = 527
   end
   object btnRefresh: TButton
     Left = 925
@@ -34,7 +33,6 @@ object frmMain: TfrmMain
     Caption = 'Refresh'
     TabOrder = 1
     OnClick = btnRefreshClick
-    ExplicitLeft = 541
   end
   object LV: TListView
     Left = 8
@@ -48,8 +46,6 @@ object frmMain: TfrmMain
     LargeImages = IL
     SmallImages = IL
     TabOrder = 2
-    ExplicitWidth = 608
-    ExplicitHeight = 396
   end
   object IL: TImageList
     Left = 490

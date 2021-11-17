@@ -41,7 +41,9 @@ uses
   System.JSON,
   System.Math,
   System.Net.HttpClient,
+  System.SysUtils,
   VCL.Graphics,
+  VCL.Imaging.JPEG,
   VCL.Imaging.PngImage,
   // Velthuis' BigNumbers
   Velthuis.BigIntegers,
@@ -52,6 +54,9 @@ uses
   web3.json,
   // project
   common;
+
+const
+  IPFS_GATEWAY = 'https://ipfs.infura.io/ipfs/';
 
 function TfrmMain.GetChain: TChain;
 begin
@@ -111,7 +116,7 @@ begin
               EXIT;
             end;
             // get this NFT's metadata schema
-            web3.http.get(uri, procedure(schema: TJsonObject; err: IError)
+            web3.http.get(uri.Replace('ipfs://', IPFS_GATEWAY), procedure(schema: TJsonObject; err: IError)
             begin
               if Assigned(err) then
               begin
@@ -123,7 +128,7 @@ begin
                 var LI := LV.Items.Add;
                 LI.Caption := web3.json.getPropAsStr(schema, 'name');
                 // get the image associated with this NFT
-                web3.http.get(web3.json.getPropAsStr(schema, 'image'), procedure(image: IHttpResponse; err: IError)
+                web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_GATEWAY), procedure(image: IHttpResponse; err: IError)
                 begin
                   if Assigned(err) then
                   begin
