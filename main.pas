@@ -56,7 +56,7 @@ uses
   common;
 
 const
-  IPFS_GATEWAY = 'https://ipfs.infura.io/ipfs/';
+  IPFS_GATEWAY = 'https://gateway.ipfs.io/ipfs/';
 
 function TfrmMain.GetChain: TChain;
 begin

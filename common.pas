@@ -103,8 +103,8 @@ function GetClient(chain: TChain; gateway: TGateway): TWeb3;
 
 const
   REQUESTS_PER_SECOND: array[TGateway] of TReqPerSec = (
-    1, // Infura
-    0  // Alchemy
+    10, // Infura
+    0   // Alchemy
   );
 begin
   Result := TWeb3.Create(
