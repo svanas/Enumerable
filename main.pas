@@ -56,7 +56,7 @@ uses
   common;
 
 const
-  IPFS_GATEWAY = 'https://gateway.ipfs.io/ipfs/';
+  IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
 function TfrmMain.GetChain: TChain;
 begin
@@ -139,16 +139,20 @@ begin
                   begin
                     var pic := TPicture.Create;
                     try
-                      pic.LoadFromStream(image.ContentStream);
-                      // add the picture to the ImageList
-                      IL.Width  := Max(IL.Width,  pic.Width);
-                      IL.Height := Max(IL.Height, pic.Height);
-                      var bmp := TBitmap.Create;
                       try
-                        bmp.Assign(pic.Graphic);
-                        LI.ImageIndex := IL.Add(bmp, nil);
-                      finally
-                        bmp.Free;
+                        pic.LoadFromStream(image.ContentStream);
+                        // add the picture to the ImageList
+                        IL.Width  := Max(IL.Width,  pic.Width);
+                        IL.Height := Max(IL.Height, pic.Height);
+                        var bmp := TBitmap.Create;
+                        try
+                          bmp.Assign(pic.Graphic);
+                          LI.ImageIndex := IL.Add(bmp, nil);
+                        finally
+                          bmp.Free;
+                        end;
+                      except
+                        on E: Exception do common.ShowError(e.Message);
                       end;
                     finally
                       pic.Free;
