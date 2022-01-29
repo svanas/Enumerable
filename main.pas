@@ -56,11 +56,12 @@ uses
   common;
 
 const
-  IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+  IPFS_DOT_IO     = 'https://ipfs.io/ipfs/';
+  CLOUDFLARE_IPFS = 'https://cloudflare-ipfs.com/ipfs/';
 
 function TfrmMain.GetChain: TChain;
 begin
-  Result := Mainnet;
+  Result := Ethereum;
 end;
 
 class procedure TfrmMain.Synchronize(P: TThreadProcedure);
@@ -116,7 +117,7 @@ begin
               EXIT;
             end;
             // get this NFT's metadata schema
-            web3.http.get(uri.Replace('ipfs://', IPFS_GATEWAY), procedure(schema: TJsonObject; err: IError)
+            web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(schema: TJsonObject; err: IError)
             begin
               if Assigned(err) then
               begin
@@ -128,7 +129,7 @@ begin
                 var LI := LV.Items.Add;
                 LI.Caption := web3.json.getPropAsStr(schema, 'name');
                 // get the image associated with this NFT
-                web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_GATEWAY), procedure(image: IHttpResponse; err: IError)
+                web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(image: IHttpResponse; err: IError)
                 begin
                   if Assigned(err) then
                   begin
