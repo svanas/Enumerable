@@ -21,10 +21,15 @@ type
     IL: TImageList;
     LV: TListView;
     procedure btnRefreshClick(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
+    FClosing: Boolean;
+    FRunning: Boolean;
     function GetChain: TChain;
     procedure Refresh;
+    procedure SetRunning(Value: Boolean);
     class procedure Synchronize(P: TThreadProcedure);
+    property Running: Boolean read FRunning write SetRunning;
   public
     property Chain: TChain read GetChain;
   end;
@@ -64,6 +69,19 @@ begin
   Result := Ethereum;
 end;
 
+procedure TfrmMain.SetRunning(Value: Boolean);
+begin
+  if Value <> FRunning then
+  begin
+    FRunning := Value;
+    if not(FRunning) and FClosing then
+      Self.Synchronize(procedure
+      begin
+        Self.Close;
+      end);
+  end;
+end;
+
 class procedure TfrmMain.Synchronize(P: TThreadProcedure);
 begin
   if TThread.CurrentThread.ThreadID = MainThreadId then
@@ -77,6 +95,7 @@ end;
 
 procedure TfrmMain.Refresh;
 begin
+  Running := True;
   Self.Synchronize(procedure
   begin
     LV.Clear;
@@ -92,85 +111,101 @@ begin
       EXIT;
     end;
     var erc721 := TERC721.Create(client, token);
-    // get number of NFTs tracked by this contract
-    erc721.TotalSupply(procedure(totalSupply: BigInteger; err: IError)
-    begin
-      if Assigned(err) then
+    // enumerate over all the NFTs in this contract
+    erc721.Enumerate(
+      // foreach
+      procedure(tokenId: BigInteger; next: TProc)
       begin
-        common.ShowError(err, Self.Chain);
-        EXIT;
-      end;
-      // enumerate over all the NFTs in this contract
-      for var I := 0 to Pred(totalSupply.AsInteger) do
-        erc721.TokenByIndex(I, procedure(tokenId: BigInteger; err: IError)
+        erc721.TokenURI(tokenId, procedure(const uri: string; err: IError)
         begin
           if Assigned(err) then
           begin
             common.ShowError(err, Self.Chain);
+            next;
             EXIT;
           end;
-          erc721.TokenURI(tokenId, procedure(const uri: string; err: IError)
+          // get this NFT's metadata schema
+          web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(schema: TJsonObject; err: IError)
           begin
             if Assigned(err) then
             begin
               common.ShowError(err, Self.Chain);
+              next;
               EXIT;
             end;
-            // get this NFT's metadata schema
-            web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(schema: TJsonObject; err: IError)
+            var LI: TListItem;
+            Self.Synchronize(procedure
+            begin
+              LI := LV.Items.Add;
+              LI.Caption := web3.json.getPropAsStr(schema, 'name');
+            end);
+            // get the image associated with this NFT
+            web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(image: IHttpResponse; err: IError)
             begin
               if Assigned(err) then
               begin
                 common.ShowError(err, Self.Chain);
+                next;
                 EXIT;
               end;
-              Self.Synchronize(procedure
-              begin
-                var LI := LV.Items.Add;
-                LI.Caption := web3.json.getPropAsStr(schema, 'name');
-                // get the image associated with this NFT
-                web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(image: IHttpResponse; err: IError)
-                begin
-                  if Assigned(err) then
-                  begin
-                    common.ShowError(err, Self.Chain);
-                    EXIT;
-                  end;
+              var pic := TPicture.Create;
+              try
+                try
+                  pic.LoadFromStream(image.ContentStream);
                   Self.Synchronize(procedure
                   begin
-                    var pic := TPicture.Create;
-                    try
-                      try
-                        pic.LoadFromStream(image.ContentStream);
-                        // add the picture to the ImageList
-                        IL.Width  := Max(IL.Width,  pic.Width);
-                        IL.Height := Max(IL.Height, pic.Height);
-                        var bmp := TBitmap.Create;
-                        try
-                          bmp.Assign(pic.Graphic);
-                          LI.ImageIndex := IL.Add(bmp, nil);
-                        finally
-                          bmp.Free;
-                        end;
-                      except
-                        on E: Exception do common.ShowError(e.Message);
-                      end;
-                    finally
-                      pic.Free;
-                    end;
-                  end)
-                end);
-              end);
+                    IL.Width  := Max(IL.Width,  pic.Width);
+                    IL.Height := Max(IL.Height, pic.Height);
+                  end);
+                  // add the picture to the ImageList
+                  var bmp := TBitmap.Create;
+                  try
+                    bmp.Assign(pic.Graphic);
+                    Self.Synchronize(procedure
+                    begin
+                      LI.ImageIndex := IL.Add(bmp, nil);
+                    end)
+                  finally
+                    bmp.Free;
+                  end;
+                  next;
+                except
+                  on E: Exception do
+                  begin
+                    common.ShowError(E.message);
+                    next;
+                  end;
+                end;
+              finally
+                pic.Free;
+              end;
             end);
           end);
         end);
-    end);
+      end,
+      // error
+      procedure(err: IError)
+      begin
+        common.ShowError(err, Self.Chain);
+      end,
+      // done
+      procedure
+      begin
+        Running := False;
+      end
+    );
   end);
 end;
 
 procedure TfrmMain.btnRefreshClick(Sender: TObject);
 begin
   Self.Refresh;
+end;
+
+procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  FClosing := True;
+  CanClose := not Running;
 end;
 
 end.

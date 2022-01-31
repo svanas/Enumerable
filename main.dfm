@@ -10,6 +10,7 @@ object frmMain: TfrmMain
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OnCloseQuery = FormCloseQuery
   PixelsPerInch = 96
   DesignSize = (
     1008
