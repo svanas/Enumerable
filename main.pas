@@ -125,7 +125,7 @@ begin
             EXIT;
           end;
           // get this NFT's metadata schema
-          web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(schema: TJsonObject; err: IError)
+          web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), [], procedure(schema: TJsonObject; err: IError)
           begin
             if Assigned(err) then
             begin
@@ -140,7 +140,7 @@ begin
               LI.Caption := web3.json.getPropAsStr(schema, 'name');
             end);
             // get the image associated with this NFT
-            web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), procedure(image: IHttpResponse; err: IError)
+            web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), [], procedure(image: IHttpResponse; err: IError)
             begin
               if Assigned(err) then
               begin
