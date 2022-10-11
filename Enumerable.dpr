@@ -1,4 +1,4 @@
-program NFT;
+program Enumerable;
 
 uses
   Vcl.Forms,

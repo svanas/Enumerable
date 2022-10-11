@@ -1,7 +1,7 @@
 object frmMain: TfrmMain
   Left = 0
   Top = 0
-  Caption = 'NFT'
+  Caption = 'Enumerable'
   ClientHeight = 714
   ClientWidth = 892
   Color = clBtnFace
