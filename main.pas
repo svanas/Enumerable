@@ -25,13 +25,15 @@ type
   private
     FClosing: Boolean;
     FRunning: Boolean;
-    function GetChain: TChain;
+    class function GetClient: IWeb3; static;
     procedure Refresh;
     procedure SetRunning(Value: Boolean);
+    class procedure ShowError(const msg: string); overload;
+    class procedure ShowError(const err: IError); overload;
     class procedure Synchronize(P: TThreadProcedure);
     property Running: Boolean read FRunning write SetRunning;
   public
-    property Chain: TChain read GetChain;
+    class property Client: IWeb3 read GetClient;
   end;
 
 var
@@ -47,6 +49,7 @@ uses
   System.Math,
   System.Net.HttpClient,
   System.SysUtils,
+  VCL.Dialogs,
   VCL.Graphics,
   VCL.Imaging.JPEG,
   VCL.Imaging.PngImage,
@@ -56,17 +59,14 @@ uses
   web3.eth.erc721,
   web3.eth.types,
   web3.http,
-  web3.json,
-  // project
-  common;
+  web3.json;
 
 const
-  IPFS_DOT_IO     = 'https://ipfs.io/ipfs/';
-  CLOUDFLARE_IPFS = 'https://cloudflare-ipfs.com/ipfs/';
+  IPFS_BASE = 'https://ipfs.io/ipfs/';
 
-function TfrmMain.GetChain: TChain;
+class function TfrmMain.GetClient: IWeb3;
 begin
-  Result := Ethereum;
+  Result := TWeb3.Create(BNB, 'https://bsc-dataseed.binance.org');
 end;
 
 procedure TfrmMain.SetRunning(Value: Boolean);
@@ -80,6 +80,21 @@ begin
         Self.Close;
       end);
   end;
+end;
+
+class procedure TfrmMain.ShowError(const msg: string);
+begin
+  Self.Synchronize(procedure
+  begin
+{$WARN SYMBOL_DEPRECATED OFF}
+    MessageDlg(msg, TMsgDlgType.mtError, [TMsgDlgBtn.mbOK], 0);
+{$WARN SYMBOL_DEPRECATED DEFAULT}
+  end);
+end;
+
+class procedure TfrmMain.ShowError(const err: IError);
+begin
+  Self.ShowError(err.Message);
 end;
 
 class procedure TfrmMain.Synchronize(P: TThreadProcedure);
@@ -101,79 +116,78 @@ begin
     LV.Clear;
     IL.Clear;
   end);
-  var client := common.GetClient(Self.Chain, Alchemy);
+  const client = Self.Client;
   // resolve the token contract address
   TAddress.New(client, edtAddress.Text, procedure(token: TAddress; err: IError)
   begin
     if Assigned(err) then
     begin
-      common.ShowError(err, Self.Chain);
+      Self.ShowError(err);
       EXIT;
     end;
-    var erc721 := TERC721.Create(client, token);
+    const erc721 = TERC721.Create(client, token);
     // enumerate over all the NFTs in this contract
     erc721.Enumerate(
       // foreach
-      procedure(tokenId: BigInteger; next: TProc)
+      procedure(tokenId: BigInteger; next: TProc<Boolean>)
       begin
-        erc721.TokenURI(tokenId, procedure(const uri: string; err: IError)
+        erc721.TokenURI(tokenId, procedure(uri: string; err: IError)
         begin
           if Assigned(err) then
           begin
-            common.ShowError(err, Self.Chain);
-            next;
+            Self.ShowError(err);
+            next(not FClosing);
             EXIT;
           end;
           // get this NFT's metadata schema
-          web3.http.get(uri.Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), [], procedure(schema: TJsonObject; err: IError)
+          web3.http.get(uri.Replace('ipfs://', IPFS_BASE), [], procedure(schema: TJsonObject; err: IError)
           begin
             if Assigned(err) then
             begin
-              common.ShowError(err, Self.Chain);
-              next;
+              Self.ShowError(err);
+              next(not FClosing);
               EXIT;
             end;
             var LI: TListItem;
             Self.Synchronize(procedure
             begin
               LI := LV.Items.Add;
+              LI.ImageIndex := -1;
               LI.Caption := web3.json.getPropAsStr(schema, 'name');
             end);
             // get the image associated with this NFT
-            web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_DOT_IO).Replace(CLOUDFLARE_IPFS, IPFS_DOT_IO), [], procedure(image: IHttpResponse; err: IError)
+            web3.http.get(web3.json.getPropAsStr(schema, 'image').Replace('ipfs://', IPFS_BASE), [], procedure(image: IHttpResponse; err: IError)
             begin
               if Assigned(err) then
               begin
-                common.ShowError(err, Self.Chain);
-                next;
+                Self.ShowError(err);
+                next(not FClosing);
                 EXIT;
               end;
-              var pic := TPicture.Create;
+              const pic = TPicture.Create;
               try
                 try
                   pic.LoadFromStream(image.ContentStream);
                   Self.Synchronize(procedure
                   begin
-                    IL.Width  := Max(IL.Width,  pic.Width);
-                    IL.Height := Max(IL.Height, pic.Height);
-                  end);
-                  // add the picture to the ImageList
-                  var bmp := TBitmap.Create;
-                  try
-                    bmp.Assign(pic.Graphic);
-                    Self.Synchronize(procedure
-                    begin
+                    IL.Width  := Min(128, Max(IL.Width,  pic.Width));
+                    IL.Height := Min(128, Max(IL.Height, pic.Height));
+                    // add the picture to the ImageList
+                    const bmp = TBitmap.Create;
+                    try
+                      bmp.SetSize(IL.Width, IL.Height);
+                      bmp.Canvas.StretchDraw(Rect(0, 0, bmp.Width, bmp.Height), pic.Graphic);
                       LI.ImageIndex := IL.Add(bmp, nil);
-                    end)
-                  finally
-                    bmp.Free;
-                  end;
-                  next;
+                    finally
+                      bmp.Free;
+                    end;
+                  end);
+                  next(not FClosing);
                 except
                   on E: Exception do
                   begin
-                    common.ShowError(E.message);
-                    next;
+                    Self.ShowError(E.message);
+                    next(not FClosing);
                   end;
                 end;
               finally
@@ -186,7 +200,7 @@ begin
       // error
       procedure(err: IError)
       begin
-        common.ShowError(err, Self.Chain);
+        Self.ShowError(err);
       end,
       // done
       procedure

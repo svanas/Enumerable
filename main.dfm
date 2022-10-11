@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'NFT'
-  ClientHeight = 729
-  ClientWidth = 1008
+  ClientHeight = 714
+  ClientWidth = 892
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,22 +11,21 @@ object frmMain: TfrmMain
   Font.Name = 'Segoe UI'
   Font.Style = []
   OnCloseQuery = FormCloseQuery
-  PixelsPerInch = 96
   DesignSize = (
-    1008
-    729)
+    892
+    714)
   TextHeight = 15
   object edtAddress: TEdit
     Left = 8
     Top = 8
-    Width = 911
+    Width = 795
     Height = 23
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 0
-    Text = '0x1820a996cd0cee1d3316d1e0e6ebc7b22796af86'
+    Text = '0xb49BD54A3A9367cf5412Ec6fF50A02e2b92eCB2F'
   end
   object btnRefresh: TButton
-    Left = 925
+    Left = 809
     Top = 8
     Width = 75
     Height = 25
@@ -38,8 +37,8 @@ object frmMain: TfrmMain
   object LV: TListView
     Left = 8
     Top = 37
-    Width = 992
-    Height = 684
+    Width = 876
+    Height = 669
     Anchors = [akLeft, akTop, akRight, akBottom]
     Columns = <
       item

@@ -2,8 +2,7 @@ program NFT;
 
 uses
   Vcl.Forms,
-  main in 'main.pas' {frmMain},
-  common in 'common.pas';
+  main in 'main.pas' {frmMain};
 
 {$R *.res}
 
