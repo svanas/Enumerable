@@ -66,7 +66,7 @@ const
 
 class function TfrmMain.GetClient: IWeb3;
 begin
-  Result := TWeb3.Create(BNB, 'https://bsc-dataseed.binance.org');
+  Result := TWeb3.Create(BNB);
 end;
 
 procedure TfrmMain.SetRunning(Value: Boolean);
