@@ -140,7 +140,7 @@ begin
             EXIT;
           end;
           // get this NFT's metadata schema
-          web3.http.get(uri.Replace('ipfs://', IPFS_BASE), [], procedure(schema: TJsonObject; err: IError)
+          web3.http.get(uri.Replace('ipfs://', IPFS_BASE), [], procedure(schema: TJsonValue; err: IError)
           begin
             if Assigned(err) then
             begin
