@@ -118,7 +118,7 @@ begin
   end);
   const client = Self.Client;
   // resolve the token contract address
-  TAddress.New(client, edtAddress.Text, procedure(token: TAddress; err: IError)
+  TAddress.Create(client, edtAddress.Text, procedure(token: TAddress; err: IError)
   begin
     if Assigned(err) then
     begin
